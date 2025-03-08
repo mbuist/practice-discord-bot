@@ -1,0 +1,120 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+
+# Dictionary of routes to stops
+bus_routes = {
+    "A": [
+        "College Avenue Student Center", "The Yard", "Student Activities Center",
+        "Stadium West Lot", "Hill Center (North)", "Science Buildings",
+        "Busch Student Center", "Werblin Recreation Center"
+    ],
+    "B": [
+        "Livingston Student Center", "Quads", "Hill Center (North)",
+        "Science Buildings", "Busch Student Center", "Livingston Plaza"
+    ],
+    "B/L Loop": [
+        "Jersey Mike's Arena", "Livingston Student Center", "Quads",
+        "Busch Student Center", "Rodkin Academic Center", "Stadium West Lot",
+        "Hill Center (North)", "Science Buildings"
+    ],
+    "C": [
+        "Stadium West Lot", "Hill Center (North)", "Allison Road Classroom Building",
+        "Hill Center (South)"
+    ],
+    "EE": [
+        "College Avenue Student Center", "The Yard", "SoCam Apartments (SB)",
+        "Red Oak Lane", "Lipman Hall", "Biel Road", "Henderson Apartments",
+        "Gibbons", "College Hall", "SoCam Apartments (NB)", "Student Activities Center"
+    ],
+    "F": [
+        "Red Oak Lane", "Lipman Hall", "College Hall", "Student Activities Center",
+        "The Yard"
+    ],
+    "H": [
+        "College Avenue Student Center", "The Yard", "Student Activities Center",
+        "Werblin Recreation Center", "Busch Student Center",
+        "Allison Road Classroom Building", "Hill Center (South)", "Stadium West Lot"
+    ],
+    "LX": [
+        "College Avenue Student Center", "The Yard", "Student Activities Center",
+        "Livingston Plaza", "Livingston Student Center", "Quads"
+    ],
+    "REXB": [
+        "Red Oak Lane", "Lipman Hall", "College Hall", "Hill Center (North)",
+        "Allison Road Classroom Building", "Hill Center (South)"
+    ],
+    "REXL": [
+        "Red Oak Lane", "Lipman Hall", "College Hall", "Livingston Plaza",
+        "Livingston Student Center"
+    ],
+    "Weekend 1": [
+        "College Avenue Student Center", "The Yard (Scott Hall)",
+        "Student Activities Center", "Science Buildings (across from Allison Road Classroom Building)",
+        "Busch Student Center", "Livingston Plaza", "Livingston Student Center",
+        "Student Activities Center", "Red Oak Lane", "Lipman Hall", "Biel Road",
+        "Gibbons", "College Hall", "SoCam Apartments (New St side of The George Apts)",
+        "Student Activities Center"
+    ],
+    "Weekend 2": [
+        "College Avenue Student Center", "The Yard (Scott Hall)", "SoCam Apartments (290 George St)",
+        "Student Activities Center", "Red Oak Lane", "Lipman Hall", "Biel Road",
+        "Gibbons", "College Hall", "Livingston Plaza", "Livingston Student Center",
+        "Busch Student Center", "Allison Road Classroom Building",
+        "Hill Center (South/towards SHI Stadium)"
+    ],
+    "All Campuses": [
+        "College Avenue Student Center", "The Yard", "Student Activities Center",
+        "Hill Center (North)", "Science Building", "Busch Student Center",
+        "Livingston Plaza", "Livingston Student Center", "Quads",
+        "Student Activities Center (SB)", "Red Oak Lane", "Lipman Hall",
+        "Biel Road", "Henderson", "Gibbons", "College Hall", "SoCam Apartments (NB)",
+        "Student Activities Center"
+    ]
+}
+
+
+intents = discord.Intents.default()
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+async def route_autocomplete(interaction: discord.Interaction, current: str):
+    """
+    This function filters `bus_routes` based on the user's partial input.
+    It must return a list of app_commands.Choice objects.
+    """
+    matches = [
+        app_commands.Choice(name=route_name, value=route_name)
+        for route_name in bus_routes
+        if current.lower() in route_name.lower()
+    ]
+    # Discord limits us to max 25 suggestions
+    return matches[:25]
+
+@bot.event
+async def on_ready():
+    try:
+        # Sync the slash commands to the server(s)
+        await bot.tree.sync()
+        print(f"Logged in as {bot.user}. Slash commands synced!")
+    except Exception as e:
+        print("Error during slash command sync:", e)
+
+@bot.tree.command(name="get_routes", description="Get the stops for a Rutgers NB bus route.")
+@app_commands.describe(route="Select the bus route name")
+@app_commands.autocomplete(route=route_autocomplete)
+async def get_routes(interaction: discord.Interaction, route: str):
+    stops = bus_routes.get(route)
+    if not stops:
+        await interaction.response.send_message(
+            f"Could not find a route named **{route}**. Please try again.",
+            ephemeral=True
+        )
+        return
+
+    route_title = f"**{route.upper()}** Bus Stops"
+    stop_list = "\n".join(f"• {stop}" for stop in stops)
+    response = f"{route_title}\n{stop_list}"
+
+    await interaction.response.send_message(response)
+
+bot.run("")
